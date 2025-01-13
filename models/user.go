@@ -3,18 +3,20 @@ package models
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/dchest/captcha"
-	conf "github.com/muety/wakapi/config"
-	"github.com/muety/wakapi/utils"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dchest/captcha"
+
+	conf "github.com/muety/wakapi/config"
+	"github.com/muety/wakapi/utils"
 )
 
 const (
 	DefaultHeartbeatsTimeout = 2 * time.Minute
 	MinHeartbeatsTimeout     = 30 * time.Second
-	MaxHeartbeatsTimeout     = 5 * time.Minute
+	MaxHeartbeatsTimeout     = 12 * time.Minute
 )
 
 func init() {
@@ -22,34 +24,34 @@ func init() {
 }
 
 type User struct {
-	ID                     string      `json:"id" gorm:"primary_key"`
-	ApiKey                 string      `json:"api_key" gorm:"unique; default:NULL"`
-	Email                  string      `json:"email" gorm:"index:idx_user_email; size:255"`
+	ID                     string      `json:"id"       gorm:"primary_key"`
+	ApiKey                 string      `json:"api_key"  gorm:"unique; default:NULL"`
+	Email                  string      `json:"email"    gorm:"index:idx_user_email; size:255"`
 	Location               string      `json:"location"`
 	Password               string      `json:"-"`
-	CreatedAt              CustomTime  `gorm:"default:CURRENT_TIMESTAMP" swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
-	LastLoggedInAt         CustomTime  `gorm:"default:CURRENT_TIMESTAMP" swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
+	CreatedAt              CustomTime  `                gorm:"default:CURRENT_TIMESTAMP"                  swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
+	LastLoggedInAt         CustomTime  `                gorm:"default:CURRENT_TIMESTAMP"                  swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
 	ShareDataMaxDays       int         `json:"-"`
-	ShareEditors           bool        `json:"-" gorm:"default:false; type:bool"`
-	ShareLanguages         bool        `json:"-" gorm:"default:false; type:bool"`
-	ShareProjects          bool        `json:"-" gorm:"default:false; type:bool"`
-	ShareOSs               bool        `json:"-" gorm:"default:false; type:bool; column:share_oss"`
-	ShareMachines          bool        `json:"-" gorm:"default:false; type:bool"`
-	ShareLabels            bool        `json:"-" gorm:"default:false; type:bool"`
-	ShareActivityChart     bool        `json:"-" gorm:"default:false; type:bool"`
-	IsAdmin                bool        `json:"-" gorm:"default:false; type:bool"`
-	HasData                bool        `json:"-" gorm:"default:false; type:bool"`
+	ShareEditors           bool        `json:"-"        gorm:"default:false; type:bool"`
+	ShareLanguages         bool        `json:"-"        gorm:"default:false; type:bool"`
+	ShareProjects          bool        `json:"-"        gorm:"default:false; type:bool"`
+	ShareOSs               bool        `json:"-"        gorm:"default:false; type:bool; column:share_oss"`
+	ShareMachines          bool        `json:"-"        gorm:"default:false; type:bool"`
+	ShareLabels            bool        `json:"-"        gorm:"default:false; type:bool"`
+	ShareActivityChart     bool        `json:"-"        gorm:"default:false; type:bool"`
+	IsAdmin                bool        `json:"-"        gorm:"default:false; type:bool"`
+	HasData                bool        `json:"-"        gorm:"default:false; type:bool"`
 	WakatimeApiKey         string      `json:"-"` // for relay middleware and imports
 	WakatimeApiUrl         string      `json:"-"` // for relay middleware and imports
 	ResetToken             string      `json:"-"`
-	ReportsWeekly          bool        `json:"-" gorm:"default:false; type:bool"`
-	PublicLeaderboard      bool        `json:"-" gorm:"default:false; type:bool"`
-	SubscribedUntil        *CustomTime `json:"-" swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
-	SubscriptionRenewal    *CustomTime `json:"-" swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
+	ReportsWeekly          bool        `json:"-"        gorm:"default:false; type:bool"`
+	PublicLeaderboard      bool        `json:"-"        gorm:"default:false; type:bool"`
+	SubscribedUntil        *CustomTime `json:"-"                                                          swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
+	SubscriptionRenewal    *CustomTime `json:"-"                                                          swaggertype:"string" format:"date" example:"2006-01-02 15:04:05.000"`
 	StripeCustomerId       string      `json:"-"`
 	InvitedBy              string      `json:"-"`
 	ExcludeUnknownProjects bool        `json:"-"`
-	HeartbeatsTimeoutSec   int         `json:"-" gorm:"default:120"` // https://github.com/muety/wakapi/issues/156
+	HeartbeatsTimeoutSec   int         `json:"-"        gorm:"default:120"` // https://github.com/muety/wakapi/issues/156
 }
 
 type Login struct {
@@ -128,10 +130,18 @@ func (u *User) AvatarURL(urlTemplate string) string {
 	urlTemplate = strings.ReplaceAll(urlTemplate, "{username}", u.ID)
 	urlTemplate = strings.ReplaceAll(urlTemplate, "{email}", u.Email)
 	if strings.Contains(urlTemplate, "{username_hash}") {
-		urlTemplate = strings.ReplaceAll(urlTemplate, "{username_hash}", fmt.Sprintf("%x", md5.Sum([]byte(u.ID))))
+		urlTemplate = strings.ReplaceAll(
+			urlTemplate,
+			"{username_hash}",
+			fmt.Sprintf("%x", md5.Sum([]byte(u.ID))),
+		)
 	}
 	if strings.Contains(urlTemplate, "{email_hash}") {
-		urlTemplate = strings.ReplaceAll(urlTemplate, "{email_hash}", fmt.Sprintf("%x", md5.Sum([]byte(u.Email))))
+		urlTemplate = strings.ReplaceAll(
+			urlTemplate,
+			"{email_hash}",
+			fmt.Sprintf("%x", md5.Sum([]byte(u.Email))),
+		)
 	}
 	return urlTemplate
 }
@@ -186,7 +196,8 @@ func (u *User) MinDataAge() time.Time {
 }
 
 func (u *User) AnyDataShared() bool {
-	return u.ShareDataMaxDays != 0 && (u.ShareEditors || u.ShareLanguages || u.ShareProjects || u.ShareOSs || u.ShareMachines || u.ShareLabels)
+	return u.ShareDataMaxDays != 0 &&
+		(u.ShareEditors || u.ShareLanguages || u.ShareProjects || u.ShareOSs || u.ShareMachines || u.ShareLabels)
 }
 
 func (c *CredentialsReset) IsValid() bool {
@@ -213,7 +224,8 @@ func (r *UserDataUpdate) IsValid() bool {
 }
 
 func ValidateUsername(username string) bool {
-	return len(username) >= 1 && username != "current" && !strings.Contains(username, " ")
+	return len(username) >= 1 && username != "current" &&
+		!strings.Contains(username, " ")
 }
 
 func ValidatePassword(password string) bool {
@@ -226,7 +238,8 @@ func ValidateCaptcha(captchaId, captchaValue string) bool {
 
 // ValidateEmail checks that, if an email address is given, it has proper syntax and (if not in dev mode) an MX record exists for the domain
 func ValidateEmail(email string) bool {
-	return email == "" || (mailRegex.MatchString(email) && (conf.Get().IsDev() || utils.CheckEmailMX(email)))
+	return email == "" ||
+		(mailRegex.MatchString(email) && (conf.Get().IsDev() || utils.CheckEmailMX(email)))
 }
 
 func ValidateTimezone(tz string) bool {
